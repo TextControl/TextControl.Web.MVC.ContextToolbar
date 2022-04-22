@@ -1,0 +1,174 @@
+﻿@using TXTextControl.Web.MVC
+	
+@Html.TXTextControl().TextControl().Render()
+
+<div id="formFieldContextMenu" data-toggle="tooltip" data-placement="left" title="To select text, click form field again when it is active">
+    <img title="Selects all text" onclick="ContextMenu.select()" class="tx-context-btn" src="~/Images/SelectAll.svg" />
+    <img title="Removes all text" onclick="ContextMenu.removeText()" class="tx-context-btn" src="~/Images/FormFieldRemoveContent.svg" />
+    <input id="cmFieldName" disabled type="text" value="[Field name]" />
+</div>
+
+@section scripts {
+
+   <script>
+
+    $(document).ready(function () {
+        $('[data-toggle="tooltip"]').tooltip({
+            trigger: 'hover click focus',
+            boundary: 'window'
+        })
+    });
+  
+    var ContextMenu = (function (tx) {
+        var _txtViewLoc = { x: 0, y: 0 };
+        var _divOvr;
+        var _textView;
+        var _zoom = 1.0;
+        var _currentField;
+        var _container;
+        var _tooltipShown = false;
+
+        function drawContextMenu() {
+
+            $("#formFieldContextMenu").tooltip("hide");
+
+            // get the singleton context menu
+            _divOvr = document.getElementById("formFieldContextMenu");
+
+            // retrieve the field location in the document
+            var fldPos = _currentField.textField.bounds;
+
+            // and calculate the offset location and zoom factor
+            var x = _textView.offsetLeft + (fldPos.location.x / 15 - _txtViewLoc.x) * _zoom;
+            var y = _textView.offsetTop + ((fldPos.location.y / 15) + (fldPos.size.height / 15) - _txtViewLoc.y) * _zoom;
+
+            // set position and size
+            _divOvr.style.zIndex = _textView.style.zIndex;
+            _divOvr.style.left = x + "px";
+            _divOvr.style.top = y + 5 + "px";
+            _divOvr.style.display = "flex";
+
+            // show tooltip once
+            if (_tooltipShown === false) {
+                $("#formFieldContextMenu").tooltip("show");
+                _tooltipShown = true;
+            }
+            else
+                $("#formFieldContextMenu").tooltip("disable");
+        }
+
+        function attachClickEvent(field) {
+
+            // remove active listeners
+            TXTextControl.removeEventListener("textFieldClicked", selectField);
+
+            // handle only editable form text fields
+            if (field.textField.type === "TEXTFORMFIELD" && field.textField.editable === true) {
+
+                // store current field for later comparison
+                _currentField = field;
+
+                // set the input value
+                document.querySelector("#cmFieldName").value = field.textField.name;
+
+                drawContextMenu();
+                TXTextControl.addEventListener("textFieldClicked", selectField);
+            }
+        }
+
+        function selectField(field) {
+
+            // field is given through "textFieldClicked" event
+            if (field !== null) {
+
+                // return in case another field is clicked
+                if (_currentField.textField.start !== field.textField.start)
+                    return;
+
+                // detach event handler
+                TXTextControl.removeEventListener("textFieldClicked", selectField);
+            }
+
+            // find field at input position and select it
+            TXTextControl.formFields.getItem(function (field) {
+
+                field.getStart(function (start) {
+                    field.getLength(function (length) {
+                        TXTextControl.select(start - 1, length);
+                    });
+                });
+
+            });
+        }
+
+        function removeText() {
+
+            // get field at input position and remove text
+            TXTextControl.formFields.getItem(function (field) {
+                field.setText("");
+            });
+        }
+
+        function textViewLocationChangedHandler(e) {
+            _txtViewLoc = e.location;
+            if (!_divOvr) return;
+            drawContextMenu()
+        }
+        
+        function zoomFactorChangedHandler(e) {
+            _zoom = e.zoomFactor / 100.0;
+            if (!_divOvr) return;
+            drawContextMenu();
+        }
+
+        function hideContextMenu() {
+            _currentField = null;
+            $("#formFieldContextMenu").tooltip("hide");
+            _divOvr.style.display = "none";
+        }
+
+        function window_load() {
+
+            _textView = document.getElementById("mainCanvas");
+            _container = document.getElementById("txTemplateDesignerContainer");
+
+            TXTextControl.addEventListener("textControlLoaded", function () {
+                TXTextControl.setDrawingMarkerLines(false);
+                TXTextControl.setTextFrameMarkerLines(false);
+
+                TXTextControl.addEventListener("textViewLocationChanged", textViewLocationChangedHandler);
+                TXTextControl.addEventListener("zoomFactorChanged", zoomFactorChangedHandler);
+
+                TXTextControl.addEventListener("textFieldEntered", attachClickEvent);
+                TXTextControl.addEventListener("textFieldChanged", attachClickEvent);
+                TXTextControl.addEventListener("textFieldLeft", hideContextMenu);
+
+                _divOvr = document.getElementById("formFieldContextMenu");
+                _container.appendChild(_divOvr);
+
+                // demo only
+                TXTextControl.formFields.addTextFormField(2000);
+                
+            });
+
+        }
+
+        window.addEventListener("load", window_load);
+
+        // exported (public) methods accessible through the ContextMenu object
+        // usage: ContextMenu.select();
+        tx = {
+
+            select: function () { return selectField(null); },
+            removeText: function () { return removeText(); }
+
+        }
+
+        return tx;
+
+    })(ContextMenu || {});
+
+</script>
+
+}
+
