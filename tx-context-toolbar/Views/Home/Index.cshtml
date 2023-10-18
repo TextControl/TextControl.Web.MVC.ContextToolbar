@@ -129,10 +129,10 @@
 
         function window_load() {
 
-            _textView = document.getElementById("mainCanvas");
-            _container = document.getElementById("txTemplateDesignerContainer");
-
             TXTextControl.addEventListener("textControlLoaded", function () {
+
+                _textView = document.getElementById("mainCanvas");
+                _container = document.getElementById("txTemplateDesignerContainer");
                 TXTextControl.setDrawingMarkerLines(false);
                 TXTextControl.setTextFrameMarkerLines(false);
 
